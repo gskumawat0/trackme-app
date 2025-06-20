@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Clock, TrendingUp, Calendar, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Activity, Clock, TrendingUp, Calendar, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useTodayCompletedLogs, useTodayActivityLogs } from '@/hooks/useActivityLogs';

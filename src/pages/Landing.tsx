@@ -9,14 +9,12 @@ import {
   Clock, 
   BarChart3, 
   Calendar, 
-  Target, 
-  Users, 
+  Target,
   CheckCircle, 
   ArrowRight,
   Play,
   Zap,
   Shield,
-  TrendingUp,
   Moon,
   Sun
 } from 'lucide-react';
