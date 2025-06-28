@@ -66,6 +66,7 @@ export interface ActivityLog {
   endDate: Date;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'HOLD';
   duration?: number | null; // Duration in minutes
+  completedAt?: Date | null; // Timestamp when activity was completed
   userId: string;
   createdAt: Date;
   updatedAt: Date;

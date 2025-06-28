@@ -52,12 +52,10 @@ export const useDashboardStats = () => {
     }),
   });
 
-  // Get recent activity logs
+  // Get recent activity logs using today route
   const { data: recentLogsResponse, error: recentLogsError } = useQuery({
-    queryKey: ['activityLogs', 'recent'],
-    queryFn: () => activityLogsService.getActivityLogs({
-      limit: 50,
-    }),
+    queryKey: ['activityLogs', 'today'],
+    queryFn: () => activityLogsService.getTodayActivityLogs(),
   });
 
   // Calculate statistics
@@ -97,32 +95,40 @@ export const useDashboardStats = () => {
     };
   };
 
-  // Format recent activities
+  // Format recent activities from today's logs
   const getRecentActivities = (): RecentActivity[] => {
     const logs = recentLogsResponse?.data || [];
     
-    return logs.map(log => {
+    return logs.slice(0, 10).map(log => { // Show only first 10 activities
       const activity = log.activity;
       const duration = log.duration 
         ? `${Math.floor(log.duration / 60)}h ${log.duration % 60}m`
         : 'No duration';
       
-      const date = new Date(log.startDate);
+      // Calculate time until expiry
+      const endDate = new Date(log.endDate);
       const now = new Date();
-      const diffTime = Math.abs(now.getTime() - date.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const timeUntilExpiry = endDate.getTime() - now.getTime();
       
-      let dateText = '';
-      if (diffDays === 1) dateText = 'Today';
-      else if (diffDays === 2) dateText = 'Yesterday';
-      else if (diffDays <= 7) dateText = `${diffDays - 1} days ago`;
-      else dateText = date.toLocaleDateString();
+      let statusText = '';
+      if (log.status === 'DONE') {
+        statusText = 'Completed';
+      } else if (timeUntilExpiry <= 0) {
+        statusText = 'Expired';
+      } else if (timeUntilExpiry < 1.5 * 24 * 60 * 60 * 1000) { // Less than 1.5 days
+        statusText = 'Due Soon';
+      } else {
+        statusText = log.status === 'IN_PROGRESS' ? 'In Progress' : 
+                    log.status === 'TODO' ? 'Pending' : 'On Hold';
+      }
 
       return {
         id: log.id,
         name: activity?.title || 'Unknown Activity',
-        duration,
-        date: dateText,
+        duration: `${duration} • ${statusText}`,
+        date: log.status === 'DONE' && log.completedAt 
+          ? `Completed ${new Date(log.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+          : `Due ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
       };
     });
   };

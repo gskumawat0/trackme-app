@@ -184,8 +184,6 @@ export const useTodayCompletedLogs = () => {
 export const useTodayActivityLogs = () => {
   return useQuery({
     queryKey: ['todayActivityLogs'],
-    queryFn: () => activityLogsService.getTodayActivityLogs({
-      limit: 100,
-    }),
+    queryFn: () => activityLogsService.getTodayActivityLogs(),
   });
 };

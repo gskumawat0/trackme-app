@@ -3,9 +3,9 @@ import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, Filter, Download, Loader2, Plus, CalendarDays, MessageSquare } from 'lucide-react';
+import { Calendar, Clock, Filter, Download, Loader2, Plus, MessageSquare, CheckCircle, PlayCircle, Clock as ClockIcon, PauseCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useActivityLogs, useGenerateActivityLogs, useUpdateActivityLogStatus, useTodayActivityLogs } from '@/hooks/useActivityLogs';
+import { useTodayActivityLogs, useGenerateActivityLogs, useUpdateActivityLogStatus } from '@/hooks/useActivityLogs';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import GenerateActivityLogsModal from '@/components/GenerateActivityLogsModal';
 import ActivityLogCommentsModal from '@/components/ActivityLogCommentsModal';
@@ -14,27 +14,20 @@ import type { ActivityLog } from '@/types';
 const ActivityLogs: React.FC = () => {
   const [filter, setFilter] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [selectedActivityLog, setSelectedActivityLog] = useState<ActivityLog | null>(null);
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
-  const [showPendingAndExpired, setShowPendingAndExpired] = useState(false);
 
   // Use custom hook for reliable title updates
   usePageTitle('Activity Logs - TrackMe');
 
-  // API integration using custom hooks
+  // API integration using custom hooks - only use today's logs
   const {
-    data: activityLogsResponse,
+    data: todayLogsResponse,
     isLoading,
     error,
     refetch
-  } = useActivityLogs({
-    page: currentPage,
-    limit: pageSize,
-    status: selectedStatus === 'all' ? undefined : selectedStatus,
-  });
+  } = useTodayActivityLogs();
 
   const {
     mutate: generateActivityLogs,
@@ -46,19 +39,7 @@ const ActivityLogs: React.FC = () => {
     isPending: isUpdating
   } = useUpdateActivityLogStatus();
 
-  // Get today's logs
-  const {
-    data: todayLogsResponse,
-    isLoading: todayLoading,
-  } = useTodayActivityLogs();
-
-  const activityLogs = activityLogsResponse?.data || [];
-  const todayLogs = todayLogsResponse?.data || [];
-  const pagination = activityLogsResponse?.pagination;
-
-  // Use the appropriate data based on the filter
-  const displayLogs = showPendingAndExpired ? todayLogs : activityLogs;
-  const isLoadingData = showPendingAndExpired ? todayLoading : isLoading;
+  const activityLogs = todayLogsResponse?.data || [];
 
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);
@@ -144,56 +125,84 @@ const ActivityLogs: React.FC = () => {
     }
   };
 
-  const filteredLogs = displayLogs.filter((log) => {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'DONE':
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'IN_PROGRESS':
+        return <PlayCircle className="h-5 w-5 text-blue-600" />;
+      case 'TODO':
+        return <ClockIcon className="h-5 w-5 text-yellow-600" />;
+      case 'HOLD':
+        return <PauseCircle className="h-5 w-5 text-gray-600" />;
+      default:
+        return <ClockIcon className="h-5 w-5 text-gray-600" />;
+    }
+  };
+
+  const filteredLogs = activityLogs.filter((log) => {
     const matchesFilter = log.activity?.title
       .toLowerCase()
       .includes(filter.toLowerCase());
     return matchesFilter;
   });
 
-  // Sort logs by endDate in increasing order and add expiry highlighting
-  const sortedAndHighlightedLogs = useMemo(() => {
+  // Group logs by status and sort by expiry date
+  const groupedLogs = useMemo(() => {
     const now = new Date();
     const oneAndHalfDaysInMs = 1.5 * 24 * 60 * 60 * 1000;
     const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
 
-    return filteredLogs
-      .map((log) => {
-        const endDate = new Date(log.endDate);
-        const timeUntilExpiry = endDate.getTime() - now.getTime();
-        
-        let borderColor = '';
-        if (timeUntilExpiry <= 0) {
-          borderColor = 'border-l-4 border-l-red-600'; // Darker red for expired
-        } else if (timeUntilExpiry < oneAndHalfDaysInMs) {
-          borderColor = 'border-l-4 border-l-red-500';
-        } else if (timeUntilExpiry < threeDaysInMs) {
-          borderColor = 'border-l-4 border-l-yellow-500';
-        } else {
-          borderColor = 'border-l-4 border-l-gray-200';
-        }
+    const logsWithExpiry = filteredLogs.map((log) => {
+      const endDate = new Date(log.endDate);
+      const timeUntilExpiry = endDate.getTime() - now.getTime();
+      
+      let borderColor = '';
+      if (timeUntilExpiry <= 0) {
+        borderColor = 'border-l-4 border-l-red-600';
+      } else if (timeUntilExpiry < oneAndHalfDaysInMs) {
+        borderColor = 'border-l-4 border-l-red-500';
+      } else if (timeUntilExpiry < threeDaysInMs) {
+        borderColor = 'border-l-4 border-l-yellow-500';
+      } else {
+        borderColor = 'border-l-4 border-l-gray-200';
+      }
 
-        return {
-          ...log,
-          borderColor,
-          timeUntilExpiry
-        };
-      })
-      .sort((a, b) => {
-        // Sort by endDate only in increasing order
-        return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
-      });
+      return {
+        ...log,
+        borderColor,
+        timeUntilExpiry
+      };
+    });
+
+    // Sort by expiry date (earliest first)
+    logsWithExpiry.sort((a, b) => a.timeUntilExpiry - b.timeUntilExpiry);
+
+    // Group by status
+    const grouped = {
+      TODO: logsWithExpiry.filter(log => log.status === 'TODO'),
+      IN_PROGRESS: logsWithExpiry.filter(log => log.status === 'IN_PROGRESS'),
+      DONE: logsWithExpiry.filter(log => log.status === 'DONE'),
+      HOLD: logsWithExpiry.filter(log => log.status === 'HOLD'),
+    };
+
+    return grouped;
   }, [filteredLogs]);
 
+  const statusColumns = [
+    { key: 'TODO', title: 'Pending', icon: getStatusIcon('TODO'), color: 'bg-yellow-50' },
+    { key: 'HOLD', title: 'On Hold', icon: getStatusIcon('HOLD'), color: 'bg-gray-50' },
+    { key: 'IN_PROGRESS', title: 'In Progress', icon: getStatusIcon('IN_PROGRESS'), color: 'bg-blue-50' },
+    { key: 'DONE', title: 'Completed', icon: getStatusIcon('DONE'), color: 'bg-green-50' },
+  ];
+
   const handleExportLogs = () => {
-    // This would typically call an API to export logs
-    // For now, we'll just show a toast notification
     toast.success('Activity logs exported successfully!');
   };
 
   const handleGenerateTodayLogs = () => {
     const today = new Date();
-    const date = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const date = today.toISOString().split('T')[0];
 
     generateActivityLogs({
       date,
@@ -201,7 +210,6 @@ const ActivityLogs: React.FC = () => {
     }, {
       onSuccess: () => {
         toast.success('Today\'s activity logs generated successfully!');
-        refetch(); // Refresh the data to show the new logs
       },
       onError: (error) => {
         toast.error('Failed to generate today\'s activity logs');
@@ -212,11 +220,6 @@ const ActivityLogs: React.FC = () => {
 
   const handleStatusFilterChange = (newStatus: string) => {
     setSelectedStatus(newStatus);
-    setCurrentPage(1); // Reset to first page when filter changes
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
   };
 
   const handleUpdateStatus = (logId: string, newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'HOLD') => {
@@ -226,7 +229,6 @@ const ActivityLogs: React.FC = () => {
     }, {
       onSuccess: () => {
         toast.success('Activity status updated successfully!');
-        refetch(); // Refresh the data to show the updated status
       },
       onError: (error) => {
         toast.error('Failed to update activity status');
@@ -305,7 +307,7 @@ const ActivityLogs: React.FC = () => {
           <div className="flex gap-2">
             <Button 
               onClick={handleGenerateTodayLogs} 
-              disabled={isGenerating || isLoadingData}
+              disabled={isGenerating || isLoading}
               variant="outline"
             >
               {isGenerating ? (
@@ -315,15 +317,7 @@ const ActivityLogs: React.FC = () => {
               )}
               Generate Today's Logs
             </Button>
-            <Button 
-              onClick={() => setIsGenerateModalOpen(true)}
-              disabled={isGenerating || isLoadingData}
-              variant="outline"
-            >
-              <CalendarDays className="h-4 w-4 mr-2" />
-              Generate Custom Logs
-            </Button>
-            <Button onClick={handleExportLogs} disabled={isLoadingData}>
+            <Button onClick={handleExportLogs} disabled={isLoading}>
               <Download className="h-4 w-4 mr-2" />
               Export Logs
             </Button>
@@ -358,7 +352,6 @@ const ActivityLogs: React.FC = () => {
                   value={selectedStatus}
                   onChange={(e) => handleStatusFilterChange(e.target.value)}
                   className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                  disabled={showPendingAndExpired}
                 >
                   <option value="all">All Statuses</option>
                   <option value="TODO">Pending</option>
@@ -367,31 +360,11 @@ const ActivityLogs: React.FC = () => {
                   <option value="HOLD">On Hold</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Special Filters
-                </label>
-                <select
-                  value={showPendingAndExpired ? 'today' : 'all'}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setShowPendingAndExpired(value === 'today');
-                    setSelectedStatus('all');
-                    setCurrentPage(1);
-                  }}
-                  className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                >
-                  <option value="all">All Items</option>
-                  <option value="today">Today's Logs</option>
-                </select>
-              </div>
               <div className="flex items-end">
                 <Button
                   onClick={() => {
                     setFilter('');
                     setSelectedStatus('all');
-                    setCurrentPage(1);
-                    setShowPendingAndExpired(false);
                   }}
                   variant="outline"
                   className="w-full"
@@ -403,17 +376,10 @@ const ActivityLogs: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Activity Logs List */}
+        {/* Jira-like Board */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              Activity Logs
-              {showPendingAndExpired && (
-                <span className="ml-2 text-sm font-normal text-orange-600">
-                  (Today's Logs Only)
-                </span>
-              )}
-            </CardTitle>
+            <CardTitle>Activity Board</CardTitle>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-600 rounded"></div>
@@ -434,94 +400,101 @@ const ActivityLogs: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingData ? (
+            {isLoading ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <span className="ml-2">Loading activity logs...</span>
               </div>
-            ) : sortedAndHighlightedLogs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No activity logs found matching your filters.
-              </div>
             ) : (
-              <div className="space-y-4">
-                {sortedAndHighlightedLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className={`border rounded-lg p-4 hover:bg-muted/50 transition-colors ${log.borderColor}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">
-                            {log.activity?.title || 'Unknown Activity'}
-                          </h3>
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${getStatusColor(log.status)}`}
-                          >
-                            {getStatusDisplay(log.status)}
-                          </span>
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${getExpiryBadgeColor(log.timeUntilExpiry)}`}
-                            title={`Expires: ${formatDate(log.endDate)}`}
-                          >
-                            {formatTimeUntilExpiry(log.timeUntilExpiry)}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            <span>
-                              {formatDate(log.startDate)} - {formatDate(log.endDate)}
-                            </span>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {statusColumns.map((column) => {
+                  const logs = groupedLogs[column.key as keyof typeof groupedLogs];
+                  const filteredLogs = selectedStatus === 'all' || selectedStatus === column.key ? logs : [];
+                  
+                  return (
+                    <div key={column.key} className={`rounded-lg ${column.color} p-4`}>
+                      <div className="flex items-center gap-2 mb-4">
+                        {column.icon}
+                        <h3 className="font-semibold text-lg">{column.title}</h3>
+                        <span className="bg-white/50 text-gray-700 px-2 py-1 rounded-full text-sm font-medium">
+                          {logs.length}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {filteredLogs.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground text-sm">
+                            No {column.title.toLowerCase()} tasks
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            <span>{formatDuration(log.duration ?? null)}</span>
-                          </div>
-                          <div>
-                            <span>Created: {formatDate(log.createdAt)}</span>
-                          </div>
-                        </div>
+                        ) : (
+                          filteredLogs.map((log) => (
+                            <div
+                              key={log.id}
+                              className={`bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow ${log.borderColor}`}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <h4 className="font-medium text-sm line-clamp-2">
+                                  {log.activity?.title || 'Unknown Activity'}
+                                </h4>
+                                <select
+                                  value={log.status}
+                                  onChange={(e) => handleUpdateStatus(log.id, e.target.value as any)}
+                                  disabled={isUpdating}
+                                  className="text-xs p-1 border rounded bg-background ml-2"
+                                >
+                                  <option value="TODO">Pending</option>
+                                  <option value="IN_PROGRESS">In Progress</option>
+                                  <option value="DONE">Completed</option>
+                                  <option value="HOLD">On Hold</option>
+                                </select>
+                              </div>
+                              
+                              <div className="space-y-1 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{formatDate(log.endDate)}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{formatDuration(log.duration ?? null)}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-xs ${getExpiryBadgeColor(log.timeUntilExpiry)}`}
+                                  >
+                                    {formatTimeUntilExpiry(log.timeUntilExpiry)}
+                                  </span>
+                                </div>
+                              </div>
 
-                        {log.activity?.description && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {log.activity.description}
-                          </p>
+                              {log.activity?.description && (
+                                <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                  {log.activity.description}
+                                </p>
+                              )}
+
+                              <div className="flex justify-between items-center mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenComments(log)}
+                                  className="text-xs h-6 px-2"
+                                >
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                  {log.comments && log.comments.length > 0 && (
+                                    <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs ml-1">
+                                      {log.comments.length}
+                                    </span>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          ))
                         )}
                       </div>
-
-                      <div className="flex flex-col gap-2 ml-4">
-                        <select
-                          value={log.status}
-                          onChange={(e) => handleUpdateStatus(log.id, e.target.value as any)}
-                          disabled={isUpdating}
-                          className="text-xs p-1 border rounded bg-background"
-                        >
-                          <option value="TODO">Pending</option>
-                          <option value="IN_PROGRESS">In Progress</option>
-                          <option value="DONE">Completed</option>
-                          <option value="HOLD">On Hold</option>
-                        </select>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenComments(log)}
-                          className="text-xs"
-                        >
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          Comments
-                          {log.comments && log.comments.length > 0 && (
-                            <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
-                              {log.comments.length}
-                            </span>
-                          )}
-                        </Button>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -537,7 +510,7 @@ const ActivityLogs: React.FC = () => {
                     Total Sessions
                   </p>
                   <p className="text-2xl font-bold">
-                    {displayLogs.filter((log) => log.status === 'DONE').length}
+                    {activityLogs.filter((log) => log.status === 'DONE').length}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-muted-foreground" />
@@ -553,7 +526,7 @@ const ActivityLogs: React.FC = () => {
                   </p>
                   <p className="text-2xl font-bold">
                     {(() => {
-                      const totalMinutes = displayLogs
+                      const totalMinutes = activityLogs
                         .filter((log) => log.status === 'DONE' && log.duration)
                         .reduce((sum, log) => sum + (log.duration || 0), 0);
                       const hours = Math.floor(totalMinutes / 60);
@@ -574,7 +547,7 @@ const ActivityLogs: React.FC = () => {
                     Active Sessions
                   </p>
                   <p className="text-2xl font-bold">
-                    {displayLogs.filter((log) => log.status === 'IN_PROGRESS').length}
+                    {activityLogs.filter((log) => log.status === 'IN_PROGRESS').length}
                   </p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -591,7 +564,7 @@ const ActivityLogs: React.FC = () => {
                     Expired Items
                   </p>
                   <p className="text-2xl font-bold text-red-600">
-                    {displayLogs.filter((log) => {
+                    {activityLogs.filter((log) => {
                       const endDate = new Date(log.endDate);
                       const now = new Date();
                       return endDate < now;
@@ -605,48 +578,12 @@ const ActivityLogs: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing page {pagination.page} of {pagination.totalPages} 
-                  ({pagination.total} total logs)
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage <= 1}
-                  >
-                    Previous
-                  </Button>
-                  <span className="flex items-center px-3 py-2 text-sm">
-                    Page {currentPage}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage >= pagination.totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Generate Activity Logs Modal */}
       <GenerateActivityLogsModal
         isOpen={isGenerateModalOpen}
         onClose={() => setIsGenerateModalOpen(false)}
-        onSuccess={() => refetch()}
       />
 
       {/* Comments Modal */}

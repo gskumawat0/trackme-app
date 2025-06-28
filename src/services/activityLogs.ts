@@ -114,10 +114,8 @@ export const activityLogsService = {
   },
 
   async getTodayActivityLogs(params?: {
-    page?: number;
-    limit?: number;
     activityId?: string;
-  }): Promise<PaginatedResponse<ActivityLog>> {
+  }): Promise<ApiResponse<ActivityLog[]>> {
     const response = await api.get('/activity-logs/today', { 
       params: { 
         ...params, 
