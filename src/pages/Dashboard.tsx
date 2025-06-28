@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Clock, TrendingUp, Calendar, Loader2, CheckCircle, AlertTriangle, PlayCircle, PauseCircle } from 'lucide-react';
+import { Activity, Clock, TrendingUp, Loader2, CheckCircle, AlertTriangle, PlayCircle, PauseCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useTodayActivityLogs } from '@/hooks/useActivityLogs';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 const Dashboard: React.FC = () => {
-  const { stats, recentActivities, isLoading: statsLoading, error } = useDashboardStats();
+  const { recentActivities, isLoading: statsLoading, error } = useDashboardStats();
   const { data: todayActivityResponse, isLoading: todayActivityLoading, error: todayActivityError } = useTodayActivityLogs();
 
   // Use custom hook for reliable title updates

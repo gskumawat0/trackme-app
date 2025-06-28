@@ -95,35 +95,6 @@ const ActivityLogs: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'DONE':
-        return 'bg-green-100 text-green-800';
-      case 'IN_PROGRESS':
-        return 'bg-blue-100 text-blue-800';
-      case 'TODO':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'HOLD':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'DONE':
-        return 'Completed';
-      case 'IN_PROGRESS':
-        return 'In Progress';
-      case 'TODO':
-        return 'Pending';
-      case 'HOLD':
-        return 'Hold';
-      default:
-        return status;
-    }
-  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
