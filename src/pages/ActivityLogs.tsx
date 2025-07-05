@@ -424,14 +424,14 @@ const ActivityLogs: React.FC = () => {
                               
                               <div className="space-y-1 text-xs text-muted-foreground">
                                 <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>{formatDate(log.endDate)}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
                                   <PlusCircle className="h-3 w-3 text-gray-500" />
                                   <span className="text-xs text-gray-500">
-                                    {formatDateTimeLocal(log.createdAt, 'MMM D, HH:mm')}
+                                    {formatDate(log.createdAt)}
                                   </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{formatDate(log.endDate)}</span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
