@@ -3,13 +3,14 @@ import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, Filter, Download, Loader2, Plus, MessageSquare, CheckCircle, PlayCircle, Clock as ClockIcon, PauseCircle } from 'lucide-react';
+import { Calendar, Clock, Filter, Download, Loader2, Plus, MessageSquare, CheckCircle, PlayCircle, Clock as ClockIcon, PauseCircle, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTodayActivityLogs, useGenerateActivityLogs, useUpdateActivityLogStatus } from '@/hooks/useActivityLogs';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import GenerateActivityLogsModal from '@/components/GenerateActivityLogsModal';
 import ActivityLogCommentsModal from '@/components/ActivityLogCommentsModal';
 import type { ActivityLog } from '@/types';
+import { formatDateTimeLocal, getTodayRangeUtc } from '@/utils/dayjs';
 
 const ActivityLogs: React.FC = () => {
   const [filter, setFilter] = useState('');
@@ -42,14 +43,7 @@ const ActivityLogs: React.FC = () => {
   const activityLogs = todayLogsResponse?.data || [];
 
   const formatDate = (dateString: string | Date) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateTimeLocal(dateString, 'ddd, MMM D, HH:mm');
   };
 
   const formatDuration = (durationMinutes: number | null) => {
@@ -288,6 +282,14 @@ const ActivityLogs: React.FC = () => {
               )}
               Generate Today's Logs
             </Button>
+            <Button 
+              onClick={() => setIsGenerateModalOpen(true)}
+              disabled={isGenerating || isLoading}
+              variant="outline"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Generate Custom Date
+            </Button>
             <Button onClick={handleExportLogs} disabled={isLoading}>
               <Download className="h-4 w-4 mr-2" />
               Export Logs
@@ -426,6 +428,12 @@ const ActivityLogs: React.FC = () => {
                                   <span>{formatDate(log.endDate)}</span>
                                 </div>
                                 <div className="flex items-center gap-1">
+                                  <PlusCircle className="h-3 w-3 text-gray-500" />
+                                  <span className="text-xs text-gray-500">
+                                    {formatDateTimeLocal(log.createdAt, 'MMM D, HH:mm')}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   <span>{formatDuration(log.duration ?? null)}</span>
                                 </div>
@@ -482,9 +490,7 @@ const ActivityLogs: React.FC = () => {
                   </p>
                   <p className="text-2xl font-bold">
                     {(() => {
-                      const today = new Date();
-                      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+                      const { start: todayStart, end: todayEnd } = getTodayRangeUtc();
                       
                       return activityLogs.filter((log) => 
                         log.status === 'DONE' && 
@@ -508,9 +514,7 @@ const ActivityLogs: React.FC = () => {
                   </p>
                   <p className="text-2xl font-bold">
                     {(() => {
-                      const today = new Date();
-                      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+                      const { start: todayStart, end: todayEnd } = getTodayRangeUtc();
                       
                       const totalMinutes = activityLogs
                         .filter((log) => 
@@ -576,6 +580,9 @@ const ActivityLogs: React.FC = () => {
       <GenerateActivityLogsModal
         isOpen={isGenerateModalOpen}
         onClose={() => setIsGenerateModalOpen(false)}
+        onSuccess={() => {
+          refetch();
+        }}
       />
 
       {/* Comments Modal */}

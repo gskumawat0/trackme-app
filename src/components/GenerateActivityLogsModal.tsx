@@ -74,7 +74,7 @@ const GenerateActivityLogsModal: React.FC<GenerateActivityLogsModalProps> = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Generate Activity Logs
+            Generate Activity Logs for Custom Date
           </h2>
           <Button
             variant="ghost"
@@ -149,8 +149,7 @@ const GenerateActivityLogsModal: React.FC<GenerateActivityLogsModalProps> = ({
 
         <div className="mt-4 p-3 bg-blue-50 rounded-md">
           <p className="text-sm text-blue-700">
-            <strong>Note:</strong> This will generate activity logs based on your configured activities 
-            for the selected frequency and date. The system will:
+            <strong>Perfect for catching up!</strong> Generate activity logs for any past date you missed. The system will:
           </p>
           <ul className="text-sm text-blue-700 mt-2 ml-4 list-disc">
             <li>Generate daily activities for the selected date (excluding weekends by default)</li>
@@ -158,6 +157,7 @@ const GenerateActivityLogsModal: React.FC<GenerateActivityLogsModalProps> = ({
             <li>Generate monthly activities if the date is the 1st of the month</li>
             <li>Skip generation if the date is in your excluded intervals</li>
             <li>Skip generation if logs already exist for the same date</li>
+            <li><strong>Great for:</strong> Vacation catch-up, missed days, or historical data generation</li>
           </ul>
         </div>
       </div>
