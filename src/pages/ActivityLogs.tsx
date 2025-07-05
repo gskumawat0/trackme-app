@@ -478,10 +478,21 @@ const ActivityLogs: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Total Sessions
+                    Today's Completed Sessions
                   </p>
                   <p className="text-2xl font-bold">
-                    {activityLogs.filter((log) => log.status === 'DONE').length}
+                    {(() => {
+                      const today = new Date();
+                      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+                      
+                      return activityLogs.filter((log) => 
+                        log.status === 'DONE' && 
+                        log.completedAt && 
+                        new Date(log.completedAt) >= todayStart && 
+                        new Date(log.completedAt) <= todayEnd
+                      ).length;
+                    })()}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-muted-foreground" />
@@ -493,12 +504,22 @@ const ActivityLogs: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Total Hours
+                    Today's Total Hours
                   </p>
                   <p className="text-2xl font-bold">
                     {(() => {
+                      const today = new Date();
+                      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+                      
                       const totalMinutes = activityLogs
-                        .filter((log) => log.status === 'DONE' && log.duration)
+                        .filter((log) => 
+                          log.status === 'DONE' && 
+                          log.completedAt && 
+                          new Date(log.completedAt) >= todayStart && 
+                          new Date(log.completedAt) <= todayEnd &&
+                          log.duration
+                        )
                         .reduce((sum, log) => sum + (log.duration || 0), 0);
                       const hours = Math.floor(totalMinutes / 60);
                       const mins = totalMinutes % 60;

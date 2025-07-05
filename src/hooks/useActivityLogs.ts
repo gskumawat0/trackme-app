@@ -39,8 +39,13 @@ export const useUpdateActivityLogStatus = () => {
       data: UpdateActivityLogRequest;
     }) => activityLogsService.updateActivityLogStatus(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['activityLogs'] });
-      queryClient.invalidateQueries({ queryKey: ['activityLog', id] });
+      // Invalidate all activity log related queries with a single call
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'activityLogs' || 
+          query.queryKey[0] === 'todayActivityLogs' ||
+          (query.queryKey[0] === 'activityLog' && query.queryKey[1] === id)
+      });
     },
   });
 };
@@ -57,7 +62,12 @@ export const useAddActivityLogComment = () => {
       data: CreateActivityLogCommentRequest;
     }) => activityLogsService.addActivityLogComment(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['activityLog', id] });
+      // Invalidate specific activity log and today's logs
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          (query.queryKey[0] === 'activityLog' && query.queryKey[1] === id) ||
+          query.queryKey[0] === 'todayActivityLogs'
+      });
     },
   });
 };
@@ -83,8 +93,11 @@ export const useDeleteActivityLogComment = () => {
     }) =>
       activityLogsService.deleteActivityLogComment(activityLogId, commentId),
     onSuccess: (_, { activityLogId }) => {
-      queryClient.invalidateQueries({
-        queryKey: ['activityLogComments', activityLogId],
+      // Invalidate comments and today's logs
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          (query.queryKey[0] === 'activityLogComments' && query.queryKey[1] === activityLogId) ||
+          query.queryKey[0] === 'todayActivityLogs'
       });
     },
   });
@@ -96,7 +109,12 @@ export const useGenerateTodayActivityLogs = () => {
   return useMutation({
     mutationFn: () => activityLogsService.generateTodayActivityLogs(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activityLogs'] });
+      // Invalidate all activity log related queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'activityLogs' || 
+          query.queryKey[0] === 'todayActivityLogs'
+      });
     },
   });
 };
@@ -110,7 +128,12 @@ export const useGenerateActivityLogs = () => {
       frequency?: string;
     }) => activityLogsService.generateActivityLogs(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activityLogs'] });
+      // Invalidate all activity log related queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'activityLogs' || 
+          query.queryKey[0] === 'todayActivityLogs'
+      });
     },
   });
 };
@@ -185,5 +208,8 @@ export const useTodayActivityLogs = () => {
   return useQuery({
     queryKey: ['todayActivityLogs'],
     queryFn: () => activityLogsService.getTodayActivityLogs(),
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: true, // Refetch when component mounts
   });
 };
