@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import WhatsAppMessenger from '@/components/WhatsAppMessenger';
 import { 
   Activity, 
   Clock, 
@@ -350,6 +351,21 @@ const Landing: React.FC = () => {
               </>
             )}
           </div>
+        </div>
+      </section>
+
+      {/* WhatsApp Messenger Section */}
+      <section className="container mx-auto px-4 py-20 bg-muted/20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Quick WhatsApp Messaging
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Need to send a quick message? Enter any phone number and start chatting on WhatsApp instantly without saving contacts.
+          </p>
+        </div>
+        <div className="flex justify-center">
+          <WhatsAppMessenger />
         </div>
       </section>
 
